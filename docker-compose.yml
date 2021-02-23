@@ -1,0 +1,82 @@
+# Docker Compose version
+version: '3'
+
+# network docker untuk menghubungkan antar container
+networks:
+  sanctum:
+
+# service yang digunakan aplikasi
+services:
+  nginx:
+    # image nginx
+    image: nginx:stable-alpine
+    # nama_container 
+    container_name: nginx-api-sanctum
+    ports:
+      - "8085:80"
+    # default directory untuk menghubungkan dari folder root ke dalam nginx docker
+    volumes:
+      # folder root src untuk meletakkan project dan terhubung dengan nginx didalam docker
+      - ./src:/var/www/html
+      # folder root nginx untuk meletakkan config nginx dan terhubung dengan nginx didalam docker
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      # pengaturan params untuk menghandle inputan form yang banyak diaplikasi
+      - ./nginx/fastcgi_params:/etc/nginx/fastcgi_params
+      # pengaturan untuk membuat aplikasi bisa upload file besar
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - php
+      - mysql
+    networks: 
+      - sanctum
+
+  mysql:
+  # image mariadb
+    image: mariadb:10.5.8
+    # nama container
+    container_name: mariadb-api-sanctum
+    # hanya ijinkan mati ketika di hentikan
+    restart: always
+    # ijinkan mengakses mysql dari luar
+    tty: true
+    # port mariadb
+    ports:
+      - "3310:3306"
+    # root directory untuk menyimpan database diluar docker agar lebih aman dan bisa dibackup
+    volumes:
+      - ./mysql:/var/lib/mysql
+    # config database
+    environment:
+      MYSQL_DATABASE: sanctum
+      MYSQL_USER: itmes
+      MYSQL_PASSWORD: itk3nc4ng
+      MYSQL_ROOT_PASSWORD: itk3nc4ng
+    networks:
+      - sanctum
+
+  php:
+    # ketika php dijalankan, jalankan/build perintah dari dockerfile
+    build:
+      context: .
+      # docker file
+      dockerfile: Dockerfile
+    # nama container
+    container_name: php-api-sanctum
+    # root folder untuk mengakses kedalam mysql docker
+    volumes:
+      - ./src:/var/www/html
+    # port mysql
+    ports:
+      - "9004:9000"
+    networks: 
+        - sanctum
+
+  composer:
+    # image untuk composer
+    image: composer:latest
+    container_name: composer-api-sanctum
+    volumes: 
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    networks: 
+      - sanctum
